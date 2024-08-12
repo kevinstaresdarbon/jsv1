@@ -86,7 +86,7 @@ function gameEngine() {
 
         game_state.current_guess = getPlayerGuess();
 
-        if (game_state.current_guess === null) {
+        if (game_state.current_guess === null) {   //need to implement a better handler for restarting / resuming the game
           return;
         }
 
@@ -152,7 +152,7 @@ function gameEngine() {
   };
 
 
-  if (localStorage.getItem("game_state") === null){     //no game_state stored in localStorage - must be a new game - set localStorage
+  if (localStorage.getItem("game_state") === null ){     //no game_state stored in localStorage - must be a new game - set localStorage
     game_state.target_number = generateRandomNumber(1, 100);
     localStorage.setItem("game_state", JSON.stringify(game_state))
   } else {                                              //game_state found so restore the internal game_state variable
