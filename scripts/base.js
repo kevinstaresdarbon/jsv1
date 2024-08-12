@@ -52,29 +52,33 @@ function gameEngine() {
         console.log("You have chosen to quit the game.");
         alert("The game has been canceled. Thank you for playing!");
         game_state.game_won = false;
-        return null; // Exit the function to stop further execution
+        return null;
       }
 
       // Handle case where input is 'q' or 'Q'
       if (input.toLowerCase() === "q") {
         console.log("You have chosen to quit the game.");
         if (confirm("Do you want to start a new game?")) {
-          gameEngine(); // Restart the game
-          return null; // Exit the function to stop further execution
+          gameEngine();
+          return null;
         } else {
           alert("Thank you for playing!");
           game_state.game_won = false;
-          return null; // Exit the function to stop further execution
+          return null;
         }
       }
-
-      // Handle whitespace issues
-      guess = parseInt(input.trim(), 10);
-
-      if (!isNaN(guess) && guess >= 1 && guess <= 100) {
-        isValid = true;
+      // Check if the input consists entirely of digits
+      if (/^\d+$/.test(input.trim())) {
+        guess = parseInt(input.trim(), 10);
+        if (guess >= 1 && guess <= 100) {
+          isValid = true;
+        } else {
+          console.log(
+            "Invalid input. Please enter a number between 1 and 100."
+          );
+        }
       } else {
-        console.log("Invalid input. Please enter a number between 1 and 100.");
+        console.log("Invalid input. Please enter a valid number.");
       }
     }
 
