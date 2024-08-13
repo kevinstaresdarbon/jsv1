@@ -72,93 +72,109 @@ function gameEngine() {
     return guess;
   };
 
-  const gameLoop = () => {
-    if (game_state.game_turn === 0) {
-      let begin_game =
-      confirm(
-        "Welcome to my guessing game. I have chosen a number from 1-100 inclusive. You have 10 tries to guess it. Are you ready?"
-      );
+  const gameLoopStart = () => {
+    let begin_game =
+    confirm(
+      "Welcome to my guessing game. I have chosen a number from 1-100 inclusive. You have 10 tries to guess it. Are you ready?"
+    );
 
-      game_state.in_progress = begin_game;
-      game_state.game_quitted = !begin_game;
+    game_state.in_progress = begin_game;
+    game_state.game_quitted = !begin_game;
+
+    gameLoop();
+  }
+
+  const gameLoopGuess = () => {
+    setTimeout(() => {
+      if (game_state.game_turn < MAX_TURNS) {
+
+        game_state.game_turn++;
+
+        console.log(
+          `++++++++++ This is turn number ${game_state.game_turn} +++++++++++++++++`
+        );
+
+        game_state.current_guess = getPlayerGuess();
+
+        if (game_state.current_guess === null) {   //need to implement a better handler for restarting / resuming the game
+          return;
+        }
+
+        if (game_state.game_quitted)
+
+        game_state.guess_sequence[game_state.game_turn - 1] = game_state.current_guess;
+
+        const check_string = checkGuess(
+          game_state.current_guess,
+          game_state.target_number
+        );
+
+        if (check_string === "correct") {
+          console.log(
+            `You did it!! The computer chose ${game_state.target_number}
+            and on turn ${game_state.game_turn} you guessed ${game_state.current_guess}. 
+            Well done!!`
+          );
+          game_state.game_won = true;
+        } else if (check_string === "too high") {
+          console.log(
+            `Your guess is too high. You have ${
+              MAX_TURNS - game_state.game_turn
+            } tries left`
+          );
+        } else if (check_string === "too low") {
+          console.log(
+            `Your guess is too low. You have ${
+              MAX_TURNS - game_state.game_turn
+            } tries left`
+          );
+        } else {
+          console.log("Error in game logic");
+        }
+      
+
+        if (!game_state.game_won) {
+          if (game_state.game_turn < MAX_TURNS) {
+            localStorage.setItem("game_state", JSON.stringify(game_state));  //save the current game_state before recursing the loop 
+            gameLoop();
+          } else {
+            console.log(
+              `You are out of turns!! You failed to guess the correct number, which was ${game_state.target_number}`
+            );
+            console.log(`Better luck next time!!`);
+            localStorage.removeItem("game_state");
+          }
+        } else {
+            console.log("Congratulations on winning the game!!");
+            localStorage.removeItem("game_state");
+        }
+      }
+    }, 0);
+  }
+
+  const gameLoopQuit = () => {
+    let resume = confirm("You have quitted the game.  Click 'OK' to resume your last game or click 'Cancel' to restart from scratch");
+    if (resume) {
+      game_state.game_quitted = false;
+      game_state.in_progress = true;
+      gameLoop();
+    } else {
+      localStorage.removeItem("game_state");
+      gameEngine();
+    }
+  }
+
+  const gameLoop = () => {
+    if (game_state.in_progress === false) {
+      gameLoopStart();
     };
 
     if (game_state.in_progress){
-      setTimeout(() => {
-        if (game_state.game_turn < MAX_TURNS) {
-  
-          game_state.game_turn++;
-  
-          console.log(
-            `++++++++++ This is turn number ${game_state.game_turn} +++++++++++++++++`
-          );
-  
-          game_state.current_guess = getPlayerGuess();
-  
-          if (game_state.current_guess === null) {   //need to implement a better handler for restarting / resuming the game
-            return;
-          }
-  
-          game_state.guess_sequence[game_state.game_turn - 1] = game_state.current_guess;
-  
-          const check_string = checkGuess(
-            game_state.current_guess,
-            game_state.target_number
-          );
-  
-          if (check_string === "correct") {
-            console.log(
-              `You did it!! The computer chose ${game_state.target_number}
-              and on turn ${game_state.game_turn} you guessed ${game_state.current_guess}. 
-              Well done!!`
-            );
-            game_state.game_won = true;
-          } else if (check_string === "too high") {
-            console.log(
-              `Your guess is too high. You have ${
-                MAX_TURNS - game_state.game_turn
-              } tries left`
-            );
-          } else if (check_string === "too low") {
-            console.log(
-              `Your guess is too low. You have ${
-                MAX_TURNS - game_state.game_turn
-              } tries left`
-            );
-          } else {
-            console.log("Error in game logic");
-          }
-        
-  
-          if (!game_state.game_won) {
-            if (game_state.game_turn < MAX_TURNS) {
-              localStorage.setItem("game_state", JSON.stringify(game_state));  //save the current game_state before recursing the loop 
-              gameLoop();
-            } else {
-              console.log(
-                `You are out of turns!! You failed to guess the correct number, which was ${game_state.target_number}`
-              );
-              console.log(`Better luck next time!!`);
-              localStorage.removeItem("game_state");
-            }
-          } else {
-              console.log("Congratulations on winning the game!!");
-              localStorage.removeItem("game_state");
-          }
-        }
-      }, 0);
+      gameLoopGuess();
     }
 
     if (game_state.game_quitted){
-      let resume = prompt("You have quitted the game.  Click 'OK' to resume your last game or click 'Cancel' to restart from scratch");
-      if (resume) {
-        game_state.game_quitted = false;
-        game_state.in_progress = true;
-        gameLoop();
-      } else {
-        localStorage.removeItem("game_state");
-        gameEngine();
-      }
+      gameLoopQuit();
     }
   };
   
