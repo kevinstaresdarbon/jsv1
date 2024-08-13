@@ -74,7 +74,7 @@ function gameEngine() {
 
   const gameLoopStart = () => {
     let begin_game =
-    confirm(
+    prompt(
       "Welcome to my guessing game. I have chosen a number from 1-100 inclusive. You have 10 tries to guess it. Are you ready?"
     );
 
