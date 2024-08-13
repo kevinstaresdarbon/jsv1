@@ -37,23 +37,23 @@ function gameEngine() {
       // Handle case where input is null (Cancel button clicked)
       if (input === null) {
         console.log("You have chosen to quit the game.");
-        alert("The game has been canceled. Thank you for playing!");
+        alert("The game has been paused. Thank you for playing!");
         game_state.game_won = false;
+        game_state.in_progress = false;
+        game_state.quitted = true;
         return null;
       }
 
       // Handle case where input is 'q' or 'Q'
       if (input.toLowerCase() === "q") {
         console.log("You have chosen to quit the game.");
-        if (confirm("Do you want to start a new game?")) {
-          gameEngine();
-          return null;
-        } else {
-          alert("Thank you for playing!");
-          game_state.game_won = false;
-          return null;
-        }
+        alert("The game has been paused. Thank you for playing!");
+        game_state.game_won = false;
+        game_state.in_progress = false;
+        game_state.quitted = true;
+        return null;
       }
+
       // Check if the input consists entirely of digits
       if (/^\d+$/.test(input.trim())) {
         guess = parseInt(input.trim(), 10);
@@ -74,75 +74,93 @@ function gameEngine() {
 
   const gameLoop = () => {
     if (game_state.game_turn === 0) {
+      let begin_game =
       confirm(
         "Welcome to my guessing game. I have chosen a number from 1-100 inclusive. You have 10 tries to guess it. Are you ready?"
       );
+
+      game_state.in_progress = begin_game;
+      game_state.game_quitted = !begin_game;
     };
 
-    setTimeout(() => {
-      if (game_state.game_turn < MAX_TURNS) {
-
-        game_state.game_turn++;
-
-        console.log(
-          `++++++++++ This is turn number ${game_state.game_turn} +++++++++++++++++`
-        );
-
-        game_state.current_guess = getPlayerGuess();
-
-        if (game_state.current_guess === null) {   //need to implement a better handler for restarting / resuming the game
-          return;
-        }
-
-        game_state.guess_sequence[game_state.game_turn - 1] = game_state.current_guess;
-
-        const check_string = checkGuess(
-          game_state.current_guess,
-          game_state.target_number
-        );
-
-        if (check_string === "correct") {
+    if (game_state.in_progress){
+      setTimeout(() => {
+        if (game_state.game_turn < MAX_TURNS) {
+  
+          game_state.game_turn++;
+  
           console.log(
-            `You did it!! The computer chose ${game_state.target_number}
-            and on turn ${game_state.game_turn} you guessed ${game_state.current_guess}. 
-            Well done!!`
+            `++++++++++ This is turn number ${game_state.game_turn} +++++++++++++++++`
           );
-          game_state.game_won = true;
-        } else if (check_string === "too high") {
-          console.log(
-            `Your guess is too high. You have ${
-              MAX_TURNS - game_state.game_turn
-            } tries left`
-          );
-        } else if (check_string === "too low") {
-          console.log(
-            `Your guess is too low. You have ${
-              MAX_TURNS - game_state.game_turn
-            } tries left`
-          );
-        } else {
-          console.log("Error in game logic");
-        }
-
-        if (!game_state.game_won) {
-          if (game_state.game_turn < MAX_TURNS) {
-            localStorage.setItem("game_state", JSON.stringify(game_state));  //save the current game_state before recursing the loop 
-            gameLoop();
-          } else {
-            console.log(
-              `You are out of turns!! You failed to guess the correct number, which was ${game_state.target_number}`
-            );
-            console.log(`Better luck next time!!`);
-            localStorage.removeItem("game_state");
+  
+          game_state.current_guess = getPlayerGuess();
+  
+          if (game_state.current_guess === null) {   //need to implement a better handler for restarting / resuming the game
+            return;
           }
-        } else {
-            console.log("Congratulations on winning the game!!");
-            localStorage.removeItem("game_state");
+  
+          game_state.guess_sequence[game_state.game_turn - 1] = game_state.current_guess;
+  
+          const check_string = checkGuess(
+            game_state.current_guess,
+            game_state.target_number
+          );
+  
+          if (check_string === "correct") {
+            console.log(
+              `You did it!! The computer chose ${game_state.target_number}
+              and on turn ${game_state.game_turn} you guessed ${game_state.current_guess}. 
+              Well done!!`
+            );
+            game_state.game_won = true;
+          } else if (check_string === "too high") {
+            console.log(
+              `Your guess is too high. You have ${
+                MAX_TURNS - game_state.game_turn
+              } tries left`
+            );
+          } else if (check_string === "too low") {
+            console.log(
+              `Your guess is too low. You have ${
+                MAX_TURNS - game_state.game_turn
+              } tries left`
+            );
+          } else {
+            console.log("Error in game logic");
+          }
+        
+  
+          if (!game_state.game_won) {
+            if (game_state.game_turn < MAX_TURNS) {
+              localStorage.setItem("game_state", JSON.stringify(game_state));  //save the current game_state before recursing the loop 
+              gameLoop();
+            } else {
+              console.log(
+                `You are out of turns!! You failed to guess the correct number, which was ${game_state.target_number}`
+              );
+              console.log(`Better luck next time!!`);
+              localStorage.removeItem("game_state");
+            }
+          } else {
+              console.log("Congratulations on winning the game!!");
+              localStorage.removeItem("game_state");
+          }
         }
-      }
-    }, 0);
-  };
+      }, 0);
+    }
 
+    if (game_state.game_quitted){
+      let resume = prompt("You have quitted the game.  Click 'OK' to resume your last game or click 'Cancel' to restart from scratch");
+      if (resume) {
+        game_state.game_quitted = false;
+        game_state.in_progress = true;
+        gameLoop();
+      } else {
+        localStorage.removeItem("game_state");
+        gameEngine();
+      }
+    }
+  };
   
   // initialisation
   const MAX_TURNS = 10;
@@ -152,11 +170,13 @@ function gameEngine() {
     game_turn: 0,
     current_guess: -1,
     guess_sequence: [],
+    message_log: [],
+    in_progress: false,
+    game_quitted: false,
     game_won: false,
   };
 
-
-  if (localStorage.getItem("game_state") === null ){     //no game_state stored in localStorage - must be a new game - set localStorage
+  if (localStorage.getItem("game_state") === null ){     //no game_state stored in localStorage - must be a new game - set localStorage for a new game
     game_state.target_number = generateRandomNumber(1, 100);
     localStorage.setItem("game_state", JSON.stringify(game_state))
   } else {                                              //game_state found so restore the internal game_state variable
@@ -165,12 +185,15 @@ function gameEngine() {
     game_state.game_turn = _retrieved_state.game_turn;
     game_state.current_guess = _retrieved_state.current_guess;
     game_state.guess_sequence = _retrieved_state.guess_sequence;
+    game_state.message_log = _retrieved_state.message_log;
+    game_state.in_progress = _retrieved_state.in_progress;
+    game_state.game_quitted = _retrieved_state.game_quitted;
     game_state.game_won = _retrieved_state.game_won;
   }
 
   // run the recursing game loop
   gameLoop();
-}
+};
 
 // gameEngine replaces the basic 1 turn. Invoke the engine to play the game
 gameEngine();
