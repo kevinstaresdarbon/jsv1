@@ -9,7 +9,7 @@ function gameEngine() {
 
     // Pad the string with leading zeros to ensure it's 6 digits long
     return strInput.padStart(6, '0');
-  }
+  };
 
   const HARD_SYMBOL_TABLE = {
     "000000": "010788",
@@ -343,7 +343,7 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
     return true;  // Return true if all keys are present
   };
 
-  const restoreGameState = () => {
+  const restoreGameState = () => {    //rename to restoreGameStateFromLocalStorage
     const restored_game_state = {};
 
     // Define the specific keys we want to check for
