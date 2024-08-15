@@ -209,7 +209,7 @@ function gameEngine() {
                     parsedValue = JSON.parse(storedValue);
                 }
 
-               a if (typeof parsedValue === "object") {
+                if (typeof parsedValue === "object") {
                     if (JSON.stringify(parsedValue) !== JSON.stringify(gameStateDefaults[key])) {
                         console.warn(`Value mismatch for key: ${key}`);
                         isValid = false;
@@ -417,7 +417,7 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
   const initializeGameState = () => {
     if (game_state.game_turn > 0) {
       restoreGameState();
-    } else {
+    } else if (game_state.game_turn === 0) {
       game_state.target_number = generateRandomNumber(1, 100);
       saveGameStateInLocalStorage();
     }
