@@ -257,8 +257,7 @@ function gameEngine() {
         try {
           let parsedValue;
           const expectedValue = gameStateDefaults[key];
-
-          console.log(expectedValue);
+          
           // Parse the stored value based on the expected type
           if (typeof expectedValue === "object") {
             parsedValue = JSON.parse(storedValue);
@@ -282,7 +281,6 @@ function gameEngine() {
               k => GAME_STATE_VARIABLES_MAPPINGS[k] === reverseLookupKey
             )
             parsedValue = parseInt(original_value);
-            console.log(parsedValue);
           }
 
           // Compare the parsed types and value with the expected
