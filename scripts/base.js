@@ -9,7 +9,7 @@ function gameEngine() {
 
     // Pad the string with leading zeros to ensure it's 6 digits long
     return strInput.padStart(6, '0');
-  }
+  };
 
   const HARD_SYMBOL_TABLE = {
     "000000": "010788",
@@ -149,7 +149,7 @@ function gameEngine() {
   };
 
   // programmatically load 0 to 100
-  for (let i=0; i<101; i++){
+  for (let i = 0; i < 101; i++) {
     formatted_index = toSixDigitString(i);
     GAME_STATE_VARIABLES_MAPPINGS[formatted_index] = formatted_index;
   }
@@ -189,54 +189,66 @@ function gameEngine() {
       "in_progress",
       "game_quitted",
       "game_won"
-  ];
+    ];
 
     requiredKeys.forEach((key) => {
-        const obfuscatedKeyIndex = GAME_STATE_VARIABLES_MAPPINGS[key];
-        const obfuscatedKey = HARD_SYMBOL_TABLE[obfuscatedKeyIndex];
-        const storedValue = localStorage.getItem(obfuscatedKey);
+      const obfuscatedKeyIndex = GAME_STATE_VARIABLES_MAPPINGS[key];
+      const obfuscatedKey = HARD_SYMBOL_TABLE[obfuscatedKeyIndex];
+      const storedValue = localStorage.getItem(obfuscatedKey);
 
-        let isValid = true;
+      let isValid = true;
 
-        if (storedValue === null) {
-            console.warn(`Missing key: ${key}`);
-            isValid = false;
-        } else {
-            try {
-                let parsedValue = storedValue;
+      if (storedValue === null) {
+        console.warn(`Missing key: ${key}`);
+        isValid = false;
+      } else {
+        try {
+          let parsedValue;
+          const expectedValue = gameStateDefaults[key];
 
-                if (typeof gameStateDefaults[key] === "object") {
-                    parsedValue = JSON.parse(storedValue);
-                }
+          // Parse the stored value based on the expected type
+          if (typeof expectedValue === "object") {
+            parsedValue = JSON.parse(storedValue);
+          } else if (typeof expectedValue === "boolean") {
+            parsedValue = storedValue === "true";
+          } else if (typeof expectedValue === "number") {
+            // Reverse lookup in HARD_SYMBOL_TABLE to get the original number
+            let reverseLookupKey = Object.keys(HARD_SYMBOL_TABLE).find(
+              k => HARD_SYMBOL_TABLE[k] === storedValue
+            );
+            parsedValue = parseInt(reverseLookupKey, 10);
+          } else {
+            parsedValue = storedValue;
+          }
 
-                if (typeof parsedValue === "object") {
-                    if (JSON.stringify(parsedValue) !== JSON.stringify(gameStateDefaults[key])) {
-                        console.warn(`Value mismatch for key: ${key}`);
-                        isValid = false;
-                    }
-                } else if (parsedValue !== gameStateDefaults[key]) {
-                    console.warn(`Value mismatch for key: ${key}`);
-                    isValid = false;
-                }
-            } catch (e) {
-                console.warn(`Failed to parse JSON for key: ${key}`, e);
-                isValid = false;
+          // Compare the parsed value with the expected value
+          if (typeof expectedValue === "object") {
+            if (JSON.stringify(parsedValue) !== JSON.stringify(expectedValue)) {
+              console.warn(`Value mismatch for key: ${key}`);
+              isValid = false;
             }
+          } else if (parsedValue !== expectedValue) {
+            console.warn(`Value mismatch for key: ${key}`);
+            isValid = false;
+          }
+        } catch (e) {
+          console.warn(`Failed to parse stored value for key: ${key}`, e);
+          isValid = false;
         }
+      }
 
-        if (!isValid) {
-            invalid_keys.push(key);
-        }
+      if (!isValid) {
+        invalid_keys.push(key);
+      }
     });
 
     return invalid_keys;
-};
+  };
 
+  const repairGameStateInLocalStorage = (invalid_keys) => {
+    const gameStateDefaults = JSON.parse(JSON.stringify(game_state)); // Deep copy of game_state for comparison values
 
-const repairGameStateInLocalStorage = (invalid_keys) => {
-  const gameStateDefaults = JSON.parse(JSON.stringify(game_state)); // Default values
-
-  invalid_keys.forEach((key) => {
+    invalid_keys.forEach((key) => {
       const obfuscatedKeyIndex = GAME_STATE_VARIABLES_MAPPINGS[key];
       const obfuscatedKey = HARD_SYMBOL_TABLE[obfuscatedKeyIndex];
       const defaultValue = gameStateDefaults[key];
@@ -244,26 +256,29 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
       let obfuscatedValueIndex;
 
       if (typeof defaultValue === "object") {
-          localStorage.setItem(obfuscatedKey, JSON.stringify(defaultValue));
+        localStorage.setItem(obfuscatedKey, JSON.stringify(defaultValue));
       } else if (typeof defaultValue === "boolean") {
-          obfuscatedValueIndex = GAME_STATE_VARIABLES_MAPPINGS[defaultValue.toString()];
-          const obfuscatedValue = HARD_SYMBOL_TABLE[obfuscatedValueIndex];
-          localStorage.setItem(obfuscatedKey, obfuscatedValue);
+        obfuscatedValueIndex = GAME_STATE_VARIABLES_MAPPINGS[defaultValue.toString()];
+        const obfuscatedValue = HARD_SYMBOL_TABLE[obfuscatedValueIndex];
+        localStorage.setItem(obfuscatedKey, obfuscatedValue);
       } else if (typeof defaultValue === "number") {
-          obfuscatedValueIndex = GAME_STATE_VARIABLES_MAPPINGS[toSixDigitString(defaultValue)];
-          const obfuscatedValue = HARD_SYMBOL_TABLE[obfuscatedValueIndex];
-          localStorage.setItem(obfuscatedKey, obfuscatedValue);
+        obfuscatedValueIndex = GAME_STATE_VARIABLES_MAPPINGS[toSixDigitString(defaultValue)];
+        const obfuscatedValue = HARD_SYMBOL_TABLE[obfuscatedValueIndex];
+        localStorage.setItem(obfuscatedKey, obfuscatedValue);
       } else {
-          localStorage.setItem(obfuscatedKey, defaultValue);
+        localStorage.setItem(obfuscatedKey, defaultValue);
       }
 
       console.log(`Repaired key: ${key}`);
-  });
-};
+      invalid_keys = invalid_keys.filter(element => element !== key);
+    });
+
+    return invalid_keys;
+  };
 
   const validateAndRepairGameState = () => {
 
-    if (game_state.game_won === true){
+    if (game_state.game_won === true) {
 
       Object.assign(game_state, reset_game_state);
       saveGameStateInLocalStorage();
@@ -271,23 +286,24 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
     } else {
       let invalid_keys = validateGameStateInLocalStorage();
 
-      if (invalid_keys.length > 0){
+      if (invalid_keys.length > 0) {
         console.warn("Local storage validation failed. Attempting to repair...");
-    
+
         let repair_attempts = 0;
-        const MAX_ATTEMPTS = 5;
-    
-        while ((invalid_keys > 0) && (repair_attempts < MAX_ATTEMPTS)){
-          repairGameStateInLocalStorage(invalid_keys);
-          invalid_keys = validateGameStateInLocalStorage();
+        const MAX_ATTEMPTS = 3;
+
+        while ((invalid_keys.length > 0) && (repair_attempts < MAX_ATTEMPTS)) {
+          invalid_keys = repairGameStateInLocalStorage(invalid_keys);
+
           repair_attempts++;
+
         };
       }
     }
   };
 
   const saveGameStateInLocalStorage = () => {
- 
+
     for (let key in game_state) {
       // Map the key to its corresponding variable in the mappings
       const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[key.toString()];
@@ -298,21 +314,21 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
       // Handle arrays or objects by serializing them
       if (Array.isArray(value) || typeof value === 'object') {
         localStorage.setItem(obfuscated_key, value);  // Direct storage without mapping.
-      } else if (typeof value === "boolean"){
-          const obfuscated_value_index = GAME_STATE_VARIABLES_MAPPINGS[value.toString()];
-          const obfuscated_value = HARD_SYMBOL_TABLE[obfuscated_value_index];
-          // Save the obfuscated key-value pair to localStorage
-          localStorage.setItem(obfuscated_key, obfuscated_value);
- 
-      } else if ((value <= 100) && (value >= 0)){
+      } else if (typeof value === "boolean") {
+        const obfuscated_value_index = GAME_STATE_VARIABLES_MAPPINGS[value.toString()];
+        const obfuscated_value = HARD_SYMBOL_TABLE[obfuscated_value_index];
+        // Save the obfuscated key-value pair to localStorage
+        localStorage.setItem(obfuscated_key, obfuscated_value);
+
+      } else if ((value <= 100) && (value >= 0)) {
         const obfuscated_value_index = GAME_STATE_VARIABLES_MAPPINGS[toSixDigitString(value)];
         const obfuscated_value = HARD_SYMBOL_TABLE[obfuscated_value_index] // || value;
 
         // Save the obfuscated key-value pair to localStorage
         localStorage.setItem(obfuscated_key, obfuscated_value);
-      } 
+      }
     }
-    
+
   };
 
   const isGameStateCompleteInLocalStorage = () => {
@@ -327,23 +343,23 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
       "in_progress",
       "game_quitted",
       "game_won"
-  ];
+    ];
 
 
     for (let key of requiredKeys) {
       // Get the obfuscated key
       const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[key];
       const obfuscated_key = HARD_SYMBOL_TABLE[obfuscated_key_index];
-      
+
       // Check if the obfuscated key exists in localStorage
       if (localStorage.getItem(obfuscated_key) === null) {
-          return false;  // Return false immediately if any key is missing
+        return false;  // Return false immediately if any key is missing
       }
     }
     return true;  // Return true if all keys are present
   };
 
-  const restoreGameState = () => {
+  const restoreGameState = () => {    //rename to restoreGameStateFromLocalStorage
     const restored_game_state = {};
 
     // Define the specific keys we want to check for
@@ -359,12 +375,12 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
     ];
 
     for (let value of requiredKeys) {
-      
+
       // Get the obfuscated key index
       const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[value];
       const obfuscated_key = HARD_SYMBOL_TABLE[obfuscated_key_index];
 
-     
+
       // Retrieve the value from localStorage
       const storedValue = localStorage.getItem(obfuscated_key);
       let originalValue;
@@ -407,6 +423,7 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
 
     // Assign the restored values to the game_state object
     Object.assign(game_state, restored_game_state);
+    saveGameStateInLocalStorage();
   };
 
   const generateRandomNumber = (min, max) => {
@@ -415,8 +432,13 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
 
 
   const initializeGameState = () => {
-    if (game_state.game_turn > 0) {
+
+    if (isGameStateCompleteInLocalStorage) {
       restoreGameState();
+      if (game_state.game_turn === 0) {
+        game_state.target_number = generateRandomNumber(1, 100);
+        saveGameStateInLocalStorage();
+      }
     } else if (game_state.game_turn === 0) {
       game_state.target_number = generateRandomNumber(1, 100);
       saveGameStateInLocalStorage();
@@ -467,7 +489,7 @@ const repairGameStateInLocalStorage = (invalid_keys) => {
       "Welcome to my guessing game. I have chosen a number from 1-100 inclusive. You have 10 tries to guess it. Are you ready?"
     );
 
-   // sanitize begin_game to protect against script attacks!!
+    // sanitize begin_game to protect against script attacks!!
 
     if (begin_game) {
       game_state.in_progress = true;
