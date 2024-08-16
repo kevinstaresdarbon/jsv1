@@ -528,7 +528,8 @@ function gameEngine() {
             originalValue = null;
           } else {
             originalValue = parseInt(Object.keys(GAME_STATE_VARIABLES_MAPPINGS).find(
-              k => GAME_STATE_VARIABLES_MAPPINGS[k] === reverseLookupKey))
+              k => GAME_STATE_VARIABLES_MAPPINGS[k] === reverseLookupKey
+            ));
           }
         } else {
           // If no reverse mapping found, assume storedValue is directly stored (e.g., JSON string)
@@ -646,9 +647,9 @@ function gameEngine() {
       saveGameStateInLocalStorage();
       gameLoop();
     } else {
-
       game_state.in_progress = true;
       game_state.game_quitted = true;
+      
       saveGameStateInLocalStorage();
       gameLoopStart();
     }
@@ -699,7 +700,7 @@ function gameEngine() {
       saveGameStateInLocalStorage();
 
       if (!game_state.game_won && game_state.game_turn < MAX_TURNS) {
-        setTimeout(gameLoopGuess, 0);  //allows the console to be seen
+        setTimeout(gameLoopGuess, 0);  //allows the console log messages to be seen while still executing blocking inputs
       } else if (!game_state.game_won) {
         console.log(`You are out of turns!! The correct number was ${game_state.target_number}. Better luck next time!!`);
         Object.assign(game_state, reset_game_state);
