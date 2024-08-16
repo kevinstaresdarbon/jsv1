@@ -7,9 +7,29 @@ function gameEngine() {
     // Convert the input to a string if it's not already
     let strInput = input.toString();
 
-    // Pad the string with leading zeros to ensure it's 6 digits long
-    return strInput.padStart(6, '0');
+    // Pad the string with leading zeros to ensure it's 6 digits long and slice the last 6 digits
+    return strInput.padStart(6, '0').slice(-6);
   };
+
+  //hashing function to make  checksums -
+  // https://www.geeksforgeeks.org/how-to-create-hash-from-string-in-javascript/#method-1-using-javascript-charcodeat-method
+
+  const stringTo6DigitHash = (string) => {
+
+    let hash = 0;
+
+    if (string.length == 0) return hash;
+
+    for (i = 0; i < string.length; i++) {
+      char = string.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+
+    return (toSixDigitString(hash).slice(-6));
+  }
+
+
 
   const HARD_SYMBOL_TABLE = {
     "000000": "010788",
@@ -145,8 +165,50 @@ function gameEngine() {
     "game_won": "000116",
     "true": "000117",
     "false": "000118",
-    "null": "000119"
+    "null": "000119",
+    "hash1": "000101",
+    "hash2": "000102",
+    "hash3": "000103",
+    "hash4": "000104",
+    "hash5": "000105",
+    "hash6": "000106",
+    "hash7": "000107",
+    "hash8": "000108"
   };
+
+  const requiredKeys = [
+    "target_number",
+    "game_turn",
+    "current_guess",
+    "guess_sequence",
+    "message_log",
+    "in_progress",
+    "game_quitted",
+    "game_won"
+  ];
+
+  const hash_keys = [
+    "hash1",
+    "hash2",
+    "hash3",
+    "hash4",
+    "hash5",
+    "hash6",
+    "hash7",
+    "hash8"
+  ]
+
+  // useful when iterating over the values of requiredKeys
+  const key_hash_link = {
+    "target_number": "hash1",
+    "game_turn": "hash2",
+    "current_guess": "hash3",
+    "guess_sequence": "hash4",
+    "message_log": "hash5",
+    "in_progress": "hash6",
+    "game_quitted": "hash7",
+    "game_won": "hash8"
+  }
 
   // programmatically load 0 to 100
   for (let i = 0; i < 101; i++) {
@@ -178,24 +240,14 @@ function gameEngine() {
 
   const validateGameStateInLocalStorage = () => {
     const invalid_keys = [];
-    const gameStateDefaults = JSON.parse(JSON.stringify(game_state)); // Default values
-
-    const requiredKeys = [
-      "target_number",
-      "game_turn",
-      "current_guess",
-      "guess_sequence",
-      "message_log",
-      "in_progress",
-      "game_quitted",
-      "game_won"
-    ];
+    const gameStateDefaults = {}
+    Object.assign(gameStateDefaults, game_state); // Default values
 
     requiredKeys.forEach((key) => {
       const obfuscatedKeyIndex = GAME_STATE_VARIABLES_MAPPINGS[key];
       const obfuscatedKey = HARD_SYMBOL_TABLE[obfuscatedKeyIndex];
       const storedValue = localStorage.getItem(obfuscatedKey);
-
+      
       let isValid = true;
 
       if (storedValue === null) {
@@ -205,24 +257,37 @@ function gameEngine() {
         try {
           let parsedValue;
           const expectedValue = gameStateDefaults[key];
-
+          
           // Parse the stored value based on the expected type
           if (typeof expectedValue === "object") {
             parsedValue = JSON.parse(storedValue);
           } else if (typeof expectedValue === "boolean") {
-            parsedValue = storedValue === "true";
-          } else if (typeof expectedValue === "number") {
-            // Reverse lookup in HARD_SYMBOL_TABLE to get the original number
+            // Reverse lookup in HARD_SYMBOL_TABLE to get the original index
             let reverseLookupKey = Object.keys(HARD_SYMBOL_TABLE).find(
               k => HARD_SYMBOL_TABLE[k] === storedValue
             );
-            parsedValue = parseInt(reverseLookupKey, 10);
-          } else {
-            parsedValue = storedValue;
+            // Reverse lookup in GAME_STATE_VARIABLES_MAPPINGS
+            let original_value = Object.keys(GAME_STATE_VARIABLES_MAPPINGS).find(
+              k => GAME_STATE_VARIABLES_MAPPINGS[k] ===reverseLookupKey
+            )
+
+            parsedValue = (original_value === "true");
+          } else if (typeof expectedValue === "number") {
+            // Reverse lookup in HARD_SYMBOL_TABLE to get the original index
+            let reverseLookupKey = Object.keys(HARD_SYMBOL_TABLE).find(
+              k => HARD_SYMBOL_TABLE[k] === storedValue
+            );
+            let original_value = Object.keys(GAME_STATE_VARIABLES_MAPPINGS).find(
+              k => GAME_STATE_VARIABLES_MAPPINGS[k] === reverseLookupKey
+            )
+            parsedValue = parseInt(original_value);
           }
 
-          // Compare the parsed value with the expected value
-          if (typeof expectedValue === "object") {
+          // Compare the parsed types and value with the expected
+          if (typeof parsedValue !== typeof expectedValue) {
+            console.warn(`Type mismatch for key: ${key}. Expected ${typeof expectedValue} but got ${typeof parsedValue}`);
+            isValid = false;
+          } else if (typeof expectedValue === "object") {
             if (JSON.stringify(parsedValue) !== JSON.stringify(expectedValue)) {
               console.warn(`Value mismatch for key: ${key}`);
               isValid = false;
@@ -253,20 +318,32 @@ function gameEngine() {
       const obfuscatedKey = HARD_SYMBOL_TABLE[obfuscatedKeyIndex];
       const defaultValue = gameStateDefaults[key];
 
+      const related_hashkey = key_hash_link[key];
+      const obfuscated_hashkey_index = GAME_STATE_VARIABLES_MAPPINGS[related_hashkey];
+      const obfuscated_hashkey = HARD_SYMBOL_TABLE[obfuscated_hashkey_index];
+
       let obfuscatedValueIndex;
 
       if (typeof defaultValue === "object") {
         localStorage.setItem(obfuscatedKey, JSON.stringify(defaultValue));
+
+        //also repair the hashkey 
+        localStorage.setItem(obfuscated_hashkey, stringTo6DigitHash(JSON.stringify(defaultValue)));
+
       } else if (typeof defaultValue === "boolean") {
         obfuscatedValueIndex = GAME_STATE_VARIABLES_MAPPINGS[defaultValue.toString()];
         const obfuscatedValue = HARD_SYMBOL_TABLE[obfuscatedValueIndex];
         localStorage.setItem(obfuscatedKey, obfuscatedValue);
+
+        //also repair the hash
+        localStorage.setItem(obfuscated_hashkey, stringTo6DigitHash(obfuscatedValue));
+
       } else if (typeof defaultValue === "number") {
         obfuscatedValueIndex = GAME_STATE_VARIABLES_MAPPINGS[toSixDigitString(defaultValue)];
         const obfuscatedValue = HARD_SYMBOL_TABLE[obfuscatedValueIndex];
         localStorage.setItem(obfuscatedKey, obfuscatedValue);
-      } else {
-        localStorage.setItem(obfuscatedKey, defaultValue);
+
+        localStorage.setItem(obfuscated_hashkey, stringTo6DigitHash(obfuscatedValue));
       }
 
       console.log(`Repaired key: ${key}`);
@@ -295,8 +372,12 @@ function gameEngine() {
         while ((invalid_keys.length > 0) && (repair_attempts < MAX_ATTEMPTS)) {
           invalid_keys = repairGameStateInLocalStorage(invalid_keys);
 
-          repair_attempts++;
+          let tampered_keys = checkIntegrityOfValues();
+          if (tampered_keys.length > 0) {
+            tampered_keys = repairGameStateInLocalStorage(tampered_keys);
+          }
 
+          repair_attempts++;
         };
       }
     }
@@ -304,21 +385,34 @@ function gameEngine() {
 
   const saveGameStateInLocalStorage = () => {
 
-    for (let key in game_state) {
-      // Map the key to its corresponding variable in the mappings
-      const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[key.toString()];
+    for (let i = 0; i < requiredKeys.length; ++i) {
+      const key = requiredKeys[i];
+      const hashkey = hash_keys[i];
+      // Map the keys to their corresponding variables in the mappings
+      const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[key];
       const obfuscated_key = HARD_SYMBOL_TABLE[obfuscated_key_index];
 
+      const obfuscated_hashkey_index = GAME_STATE_VARIABLES_MAPPINGS[hashkey];
+      const obfuscated_hashkey = HARD_SYMBOL_TABLE[obfuscated_hashkey_index];
+
       // Map the value to its corresponding value in the mappings
-      let value = game_state[key.toString()];
+      let value = game_state[key];
       // Handle arrays or objects by serializing them
       if (Array.isArray(value) || typeof value === 'object') {
-        localStorage.setItem(obfuscated_key, value);  // Direct storage without mapping.
+        //save the pairs
+        localStorage.setItem(obfuscated_key, JSON.stringify(value));  // Direct storage without mapping.
+
+        //save the obfuscated checksums
+        localStorage.setItem(obfuscated_hashkey, stringTo6DigitHash(JSON.stringify(value)));
+
       } else if (typeof value === "boolean") {
         const obfuscated_value_index = GAME_STATE_VARIABLES_MAPPINGS[value.toString()];
         const obfuscated_value = HARD_SYMBOL_TABLE[obfuscated_value_index];
         // Save the obfuscated key-value pair to localStorage
         localStorage.setItem(obfuscated_key, obfuscated_value);
+
+        //save the obfuscated checksums
+        localStorage.setItem(obfuscated_hashkey, stringTo6DigitHash(obfuscated_value));
 
       } else if ((value <= 100) && (value >= 0)) {
         const obfuscated_value_index = GAME_STATE_VARIABLES_MAPPINGS[toSixDigitString(value)];
@@ -326,25 +420,14 @@ function gameEngine() {
 
         // Save the obfuscated key-value pair to localStorage
         localStorage.setItem(obfuscated_key, obfuscated_value);
+
+        //save the obfuscated checksums
+        localStorage.setItem(obfuscated_hashkey, stringTo6DigitHash(obfuscated_value));
       }
     }
-
   };
 
   const isGameStateCompleteInLocalStorage = () => {
-
-    // Define the specific keys we want to check for
-    const requiredKeys = [
-      "target_number",
-      "game_turn",
-      "current_guess",
-      "guess_sequence",
-      "message_log",
-      "in_progress",
-      "game_quitted",
-      "game_won"
-    ];
-
 
     for (let key of requiredKeys) {
       // Get the obfuscated key
@@ -359,20 +442,62 @@ function gameEngine() {
     return true;  // Return true if all keys are present
   };
 
-  const restoreGameState = () => {    //rename to restoreGameStateFromLocalStorage
-    const restored_game_state = {};
+  const areChecksumsCompleteInLocalStorage = () => {
 
-    // Define the specific keys we want to check for
-    const requiredKeys = [
-      "target_number",
-      "game_turn",
-      "current_guess",
-      "guess_sequence",
-      "message_log",
-      "in_progress",
-      "game_quitted",
-      "game_won"
-    ];
+    for (let key of hash_keys) {
+      // Get the obfuscated key
+      const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[key];
+      const obfuscated_key = HARD_SYMBOL_TABLE[obfuscated_key_index];
+      // Check if the obfuscated key exists in localStorage
+      if (localStorage.getItem(obfuscated_key) === null) {
+        return false;  // Return false immediately if any key is missing
+      }
+    }
+    return true;
+  };
+
+  const checkIntegrityOfValues = () => {
+    const game_state_complete = isGameStateCompleteInLocalStorage();
+    const checksums_complete = areChecksumsCompleteInLocalStorage();
+
+    let tampered_keys = [];
+    // can perform a full integrity check
+    if (game_state_complete && checksums_complete) {
+      for (let i = 0; i < requiredKeys.length; i++) {
+        const key = requiredKeys[i];
+        const hashkey = hash_keys[i];
+        // Map the keys to their corresponding variables in the mappings
+        const obfuscated_key_index = GAME_STATE_VARIABLES_MAPPINGS[key];
+        const obfuscated_key = HARD_SYMBOL_TABLE[obfuscated_key_index];
+
+        const obfuscated_hashkey_index = GAME_STATE_VARIABLES_MAPPINGS[hashkey];
+        const obfuscated_hashkey = HARD_SYMBOL_TABLE[obfuscated_hashkey_index];
+
+        //retrieve the hash
+        const stored_hash_value = localStorage.getItem(obfuscated_hashkey);
+
+        //retrieve the value and compare its hash to stored hash
+        const stored_value = localStorage.getItem(obfuscated_key);
+
+        //integrity check failed!!!
+        if (stringTo6DigitHash(stored_value) !== stored_hash_value) {
+          tampered_keys.push(obfuscated_key);  //build an array of keys that failed checks
+        }
+
+      }
+    }
+    return tampered_keys;
+  }
+
+  const restoreGameState = () => {    //rename to restoreGameStateFromLocalStorage
+
+    // Check integrity before restoring the game state
+    let tampered_keys = checkIntegrityOfValues();
+    if (tampered_keys.length > 0) {
+      tampered_keys = repairGameStateInLocalStorage(tampered_keys);
+    }
+
+    const restored_game_state = {};
 
     for (let value of requiredKeys) {
 
@@ -399,21 +524,23 @@ function gameEngine() {
             originalValue = false;
           } else if (reverseLookupKey === "000119") {
             originalValue = null;
-          } else if (!isNaN(reverseLookupKey)) {
-            originalValue = parseInt(reverseLookupKey);
+          } else {
+            originalValue = parseInt(Object.keys(GAME_STATE_VARIABLES_MAPPINGS).find(
+              k => GAME_STATE_VARIABLES_MAPPINGS[k] === reverseLookupKey
+            ));
           }
         } else {
           // If no reverse mapping found, assume storedValue is directly stored (e.g., JSON string)
-          originalValue = storedValue;
+          originalValue = JSON.parse(storedValue);
 
-          // Attempt to parse JSON strings back to arrays or objects
-          try {
-            if (typeof originalValue === 'string' && (originalValue.startsWith('{') || originalValue.startsWith('['))) {
-              originalValue = JSON.parse(originalValue);
-            }
-          } catch (e) {
-            console.warn(`Failed to parse JSON for key ${key}:`, e);
-          }
+          // // Attempt to parse JSON strings back to arrays or objects
+          // try {
+          //   if (typeof originalValue === 'string' && (originalValue.startsWith('{') || originalValue.startsWith('['))) {
+          //     originalValue = JSON.parse(originalValue);
+          //   }
+          // } catch (e) {
+          //   console.warn(`Failed to parse JSON for key ${key}:`, e);
+          // }
         }
       }
 
@@ -433,16 +560,22 @@ function gameEngine() {
 
   const initializeGameState = () => {
 
-    if (isGameStateCompleteInLocalStorage) {
+    if (isGameStateCompleteInLocalStorage()) {
+
       restoreGameState();
+
       if (game_state.game_turn === 0) {
         game_state.target_number = generateRandomNumber(1, 100);
         saveGameStateInLocalStorage();
       }
     } else if (game_state.game_turn === 0) {
       game_state.target_number = generateRandomNumber(1, 100);
+      game_state.in_progress = true;
       saveGameStateInLocalStorage();
     }
+    // game_state.target_number = generateRandomNumber(1, 100);
+    // saveGameStateInLocalStorage();
+
   };
 
   const checkGuess = (guess, target) => {
@@ -485,23 +618,55 @@ function gameEngine() {
   };
 
   const gameLoopStart = () => {
+
+
+    //perform validity check, repair if necessary before repeating the loop
+    let invalid_keys = validateGameStateInLocalStorage();
+    if (invalid_keys.length > 0) {
+      repairGameStateInLocalStorage(invalid_keys);
+    }
+
+    //all keys should be restored, time to check integrity of values
+    let tampered_keys = checkIntegrityOfValues();
+    if (tampered_keys.length > 0) {
+      tampered_keys = repairGameStateInLocalStorage(tampered_keys);
+    }
+
     let begin_game = confirm(
       "Welcome to my guessing game. I have chosen a number from 1-100 inclusive. You have 10 tries to guess it. Are you ready?"
     );
 
     // sanitize begin_game to protect against script attacks!!
 
-    if (begin_game) {
+    if (begin_game === true) {
       game_state.in_progress = true;
       game_state.game_quitted = false;
+
       saveGameStateInLocalStorage();
       gameLoop();
     } else {
+      game_state.in_progress = true;
+      game_state.game_quitted = true;
+      
+      saveGameStateInLocalStorage();
       gameLoopStart();
     }
   };
 
   const gameLoopGuess = () => {
+    
+    //perform validity check, repair if necessary before attempting the loop
+    let invalid_keys = validateGameStateInLocalStorage();
+    if (invalid_keys.length > 0) {
+      repairGameStateInLocalStorage(invalid_keys);
+    }
+
+    //all keys should be restored, time to check integrity of values
+    let tampered_keys = checkIntegrityOfValues();
+    if (tampered_keys.length > 0) {
+      tampered_keys = repairGameStateInLocalStorage(tampered_keys);
+    }
+
     if (game_state.game_turn < MAX_TURNS && !game_state.game_won) {
       game_state.game_turn++;
       console.log(`++++++++++ This is turn number ${game_state.game_turn} +++++++++++++++++`);
@@ -533,7 +698,7 @@ function gameEngine() {
       saveGameStateInLocalStorage();
 
       if (!game_state.game_won && game_state.game_turn < MAX_TURNS) {
-        setTimeout(gameLoopGuess, 0);  //allows the console to be seen
+        setTimeout(gameLoopGuess, 0);  //allows the console log messages to be seen while still executing blocking inputs
       } else if (!game_state.game_won) {
         console.log(`You are out of turns!! The correct number was ${game_state.target_number}. Better luck next time!!`);
         Object.assign(game_state, reset_game_state);
@@ -549,7 +714,7 @@ function gameEngine() {
 
   const gameLoopQuit = () => {
     let resume = confirm("You have quit the game.  Click 'OK' to resume your last game or Cancel to end the game.");
-    //sanitize resume befor it is used!!!
+    //sanitize resume before it is used!!!
     if (resume === true) {
       game_state.game_quitted = false;
       game_state.in_progress = true;
