@@ -19,6 +19,10 @@
 4. Continue guessing until you find the correct number.
 5. After the game ends, you can choose to play again or exit.
 
+---
+ you can view the page using this link: 
+[guessing-game](https://kevinstaresdarbon.github.io/jsv1/)
+---
 ## Installation
 
 To run the Guessing Game locally, follow these steps:
